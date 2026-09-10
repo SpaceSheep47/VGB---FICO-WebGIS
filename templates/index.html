@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#063231">
+  <title>Vertical Green | WebGIS</title>
+
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        crossorigin="">
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+
+<body>
+<div class="app-shell" id="appShell">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <img src="{{ url_for('static', filename='logo.svg') }}" alt="Vertical Green" class="brand-logo">
+      </div>
+      <div>
+        <div class="brand-title">
+          Vertical Green
+          <span class="brand-badge">WebGIS</span>
+        </div>
+        <div class="brand-subtitle">Portal Geográfico & Soluções em Engenharia</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button id="themeToggle" class="icon-btn" title="Alternar tema">☾</button>
+      <button id="btnHome" class="icon-btn" title="Enquadrar Goiás">⌂</button>
+      <button id="btnLocate" class="icon-btn" title="Minha localização">◎</button>
+      <button id="btnFullscreen" class="icon-btn" title="Tela cheia">⛶</button>
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <section class="panel search-panel">
+      <div class="panel-title">LOCALIZAÇÃO</div>
+      <div class="search-row">
+        <input id="searchInput" type="text"
+               placeholder="Buscar cidade, endereço ou local...">
+        <button id="searchBtn" class="primary-btn">Buscar</button>
+      </div>
+      <div id="searchStatus" class="muted"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">MAPAS BASE</div>
+
+      <label class="layer-item">
+        <input type="radio" name="basemap" value="osm" checked>
+        <span class="swatch map-swatch"></span>
+        <span>Mapa Vetorial (OSM)</span>
+      </label>
+
+      <label class="layer-item">
+        <input type="radio" name="basemap" value="satellite">
+        <span class="swatch satellite-swatch"></span>
+        <span>Imagem de Satélite</span>
+      </label>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">CAMADAS</div>
+
+      <label class="layer-item">
+        <input type="checkbox" id="roadsToggle" checked>
+        <span class="swatch roads-swatch"></span>
+        <span>Rodovias e transportes</span>
+      </label>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">FERRAMENTAS</div>
+
+      <div class="tool-field">
+        <label for="featureName" class="tool-label">Nome da Feição (Ponto ou Polígono):</label>
+        <input id="featureName" type="text" class="tool-input"
+               placeholder="Ex: Talude 01, Ponto de Coleta..." maxlength="50">
+      </div>
+
+      <div class="tool-btn-grid">
+        <button id="btnAddPoint" class="tool-btn" title="Clique no mapa para criar um ponto com nome">
+          ● Adicionar Ponto
+        </button>
+        <button id="btnAddPolygon" class="tool-btn" title="Clique no mapa para desenhar os vértices do polígono">
+          ⬡ Criar Polígono
+        </button>
+      </div>
+
+      <button id="btnMeasure" class="tool-btn" title="Clique no mapa para medir distância linear">
+        ↗ Medir distância
+      </button>
+
+      <div id="polygonControls" class="tool-actions-active hidden">
+        <button id="btnFinishPolygon" class="tool-btn tool-btn-success" title="Finalizar polígono desenhado">
+          ✓ Concluir Polígono
+        </button>
+        <button id="btnCancelDraw" class="tool-btn tool-btn-cancel" title="Cancelar desenho atual">
+          ✕ Cancelar
+        </button>
+      </div>
+
+      <div id="toolStatusHint" class="tool-status-hint hidden"></div>
+
+      <div class="features-summary" id="featuresSummary">
+        <span>Feições salvas:</span>
+        <span id="featuresCount">0 pontos | 0 polígonos</span>
+      </div>
+
+      <div class="clear-group">
+        <button id="btnClear" class="clear-btn">× Limpar medição</button>
+        <button id="btnClearFeatures" class="clear-btn">× Limpar todos os pontos e polígonos</button>
+      </div>
+    </section>
+
+    <section class="panel legend-panel">
+      <div class="panel-title">LEGENDA</div>
+      <div class="legend-row">
+        <span class="legend-line road-line"></span>
+        Rodovias / rede viária
+      </div>
+      <div class="legend-row">
+        <span class="legend-point point-dot-legend"></span>
+        Pontos identificados
+      </div>
+      <div class="legend-row">
+        <span class="legend-poly poly-swatch-legend"></span>
+        Polígonos com rótulo
+      </div>
+    </section>
+
+    <section class="panel technical">
+      <div class="panel-title">ÁREA DE VISUALIZAÇÃO</div>
+      <div class="technical-row"><b>Região:</b> Goiás e Adjacências</div>
+      <div class="technical-row"><b>Modo:</b> Tiles XYZ + Vetores</div>
+      <div class="technical-row"><b>Empresa:</b> Vertical Green do Brasil</div>
+    </section>
+
+    <div class="sidebar-footer">
+      <div>Vertical Green &bull; WebGIS</div>
+      <div class="small">Soluções Geotécnicas e Ambientais</div>
+    </div>
+  </aside>
+
+  <main id="map"></main>
+
+  <div class="map-status">
+    <span id="coords">Lat: — | Lon: —</span>
+    <span id="zoomLevel">Zoom: —</span>
+  </div>
+
+  <div id="infoBox" class="info-box hidden">
+    <div class="info-title">Informação</div>
+    <div id="infoContent"></div>
+    <button id="closeInfo" class="close-btn">Fechar</button>
+  </div>
+
+  <div id="loading" class="loading">Carregando WebGIS Vertical Green...</div>
+</div>
+
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  crossorigin=""></script>
+<script
+  src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+<script>
+(function () {
+  // Limites aproximados do Estado de Goiás
+  const GOIAS_BOUNDS = L.latLngBounds(
+    [-19.50, -53.25],
+    [-12.35, -45.75]
+  );
+
+  const GOIAS_CENTER = [-16.0, -49.5];
+
+  const map = L.map('map', {
+    center: GOIAS_CENTER,
+    zoom: 7,
+    minZoom: 5,
+    maxZoom: 18,
+    maxBounds: GOIAS_BOUNDS,
+    maxBoundsViscosity: 0.9,
+    zoomControl: false,
+    preferCanvas: true
+  });
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  // MAPA BASE — tiles OSM
+  const osm = L.tileLayer(
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+      maxZoom: 19,
+      minZoom: 3,
+      attribution: '&copy; OpenStreetMap contributors | Vertical Green',
+      keepBuffer: 1,
+      updateWhenIdle: true,
+      updateWhenZooming: false
+    }
+  );
+
+  // SATÉLITE — Esri World Imagery
+  const satellite = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {
+      maxZoom: 19,
+      minZoom: 3,
+      attribution: 'Tiles &copy; Esri | Vertical Green',
+      keepBuffer: 1,
+      updateWhenIdle: true,
+      updateWhenZooming: false
+    }
+  );
+
+  // RODOVIAS
+  const roads = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+    {
+      maxZoom: 19,
+      minZoom: 3,
+      opacity: 0.95,
+      attribution: 'Transportation &copy; Esri',
+      keepBuffer: 1,
+      updateWhenIdle: true,
+      updateWhenZooming: false
+    }
+  );
+
+  osm.addTo(map);
+  roads.addTo(map);
+
+  // GRUPOS PARA FEIÇÕES DESENHADAS
+  const pointsGroup = L.featureGroup().addTo(map);
+  const polygonsGroup = L.featureGroup().addTo(map);
+
+  // Alternância de mapas base
+  document.querySelectorAll('input[name="basemap"]').forEach(input => {
+    input.addEventListener('change', e => {
+      if (e.target.value === 'satellite') {
+        map.removeLayer(osm);
+        satellite.addTo(map);
+      } else {
+        map.removeLayer(satellite);
+        osm.addTo(map);
+      }
+    });
+  });
+
+  // Alternância da camada de rodovias
+  document.getElementById('roadsToggle').addEventListener('change', e => {
+    if (e.target.checked) {
+      roads.addTo(map);
+    } else {
+      map.removeLayer(roads);
+    }
+  });
+
+  // Botões de navegação
+  document.getElementById('btnHome').addEventListener('click', () => {
+    map.fitBounds(GOIAS_BOUNDS, { padding: [20, 20] });
+  });
+
+  document.getElementById('btnLocate').addEventListener('click', () => {
+    map.locate({
+      setView: true,
+      maxZoom: 15,
+      enableHighAccuracy: true
+    });
+  });
+
+  map.on('locationfound', e => {
+    if (!GOIAS_BOUNDS.contains(e.latlng)) {
+      alert('Sua localização está fora dos limites configurados para Goiás.');
+      return;
+    }
+
+    L.circleMarker(e.latlng, {
+      radius: 8,
+      weight: 3,
+      color: '#063231',
+      fillColor: '#b4f625',
+      fillOpacity: 0.75
+    }).addTo(map)
+      .bindPopup('<b>Sua localização atual</b>')
+      .openPopup();
+  });
+
+  map.on('locationerror', () => {
+    alert('Não foi possível obter a localização pelo navegador.');
+  });
+
+  document.getElementById('btnFullscreen').addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  });
+
+  // BUSCA NOMINATIM
+  async function searchPlace() {
+    const q = document.getElementById('searchInput').value.trim();
+    const status = document.getElementById('searchStatus');
+
+    if (!q) return;
+
+    status.textContent = 'Pesquisando...';
+
+    try {
+      const url =
+        'https://nominatim.openstreetmap.org/search?format=json&limit=5' +
+        '&countrycodes=br&q=' + encodeURIComponent(q + ', Goiás, Brasil');
+
+      const response = await fetch(url, {
+        headers: { 'Accept-Language': 'pt-BR' }
+      });
+
+      const data = await response.json();
+
+      if (!data.length) {
+        status.textContent = 'Local não encontrado.';
+        return;
+      }
+
+      const resultInGoias = data.find(item => {
+        const point = L.latLng(Number(item.lat), Number(item.lon));
+        return GOIAS_BOUNDS.contains(point);
+      });
+
+      if (!resultInGoias) {
+        status.textContent = 'O resultado não está dentro de Goiás.';
+        return;
+      }
+
+      const lat = Number(resultInGoias.lat);
+      const lon = Number(resultInGoias.lon);
+
+      map.setView([lat, lon], 14);
+
+      L.marker([lat, lon])
+        .addTo(map)
+        .bindPopup(`<b>${resultInGoias.display_name}</b>`)
+        .openPopup();
+
+      status.textContent = '';
+    } catch (error) {
+      status.textContent = 'Erro na pesquisa.';
+    }
+  }
+
+  document.getElementById('searchBtn').addEventListener('click', searchPlace);
+  document.getElementById('searchInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') searchPlace();
+  });
+
+  // COORDENADAS / ZOOM STATUS
+  map.on('mousemove', e => {
+    document.getElementById('coords').textContent =
+      `Lat: ${e.latlng.lat.toFixed(5)} | Lon: ${e.latlng.lng.toFixed(5)}`;
+  });
+
+  function updateMapStatus() {
+    document.getElementById('zoomLevel').textContent =
+      `Zoom: ${map.getZoom()}`;
+  }
+  map.on('zoomend moveend', updateMapStatus);
+  updateMapStatus();
+
+  // UTILITÁRIO PARA ESCAPAR HTML
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // ==========================================
+  // FERRAMENTAS: MEDIÇÃO, PONTOS E POLÍGONOS
+  // ==========================================
+  let currentMode = null; // null | 'measure' | 'point' | 'polygon'
+  let pointCounter = 0;
+  let polygonCounter = 0;
+
+  // Medição
+  let measurePoints = [];
+  let measureLine = null;
+  let measureMarkers = [];
+
+  // Polígono em andamento
+  let polyVertices = [];
+  let polyVertexMarkers = [];
+  let polyPreviewLine = null;
+
+  const btnMeasure = document.getElementById('btnMeasure');
+  const btnAddPoint = document.getElementById('btnAddPoint');
+  const btnAddPolygon = document.getElementById('btnAddPolygon');
+  const polygonControls = document.getElementById('polygonControls');
+  const btnFinishPolygon = document.getElementById('btnFinishPolygon');
+  const btnCancelDraw = document.getElementById('btnCancelDraw');
+  const toolStatusHint = document.getElementById('toolStatusHint');
+  const featureNameInput = document.getElementById('featureName');
+  const featuresCountSpan = document.getElementById('featuresCount');
+
+  function updateFeaturesCounter() {
+    const pts = pointsGroup.getLayers().length;
+    const polys = polygonsGroup.getLayers().length;
+    featuresCountSpan.textContent = `${pts} ponto${pts !== 1 ? 's' : ''} | ${polys} polígono${polys !== 1 ? 's' : ''}`;
+  }
+
+  function setMode(newMode) {
+    // Se clicar no botão já ativo, desativa
+    if (currentMode === newMode) {
+      currentMode = null;
+    } else {
+      currentMode = newMode;
+    }
+
+    // Limpa estado de polígono não salvo se mudar de modo
+    if (currentMode !== 'polygon') {
+      cancelPolygonDraw();
+    }
+
+    // Atualiza botões
+    btnMeasure.classList.toggle('active', currentMode === 'measure');
+    btnAddPoint.classList.toggle('active', currentMode === 'point');
+    btnAddPolygon.classList.toggle('active', currentMode === 'polygon');
+
+    // Mensagens de orientação
+    if (currentMode === 'point') {
+      toolStatusHint.textContent = 'Modo Ponto ativo: clique no mapa para posicionar o ponto. O nome digitado acima será exibido sobre ele.';
+      toolStatusHint.classList.remove('hidden');
+      polygonControls.classList.add('hidden');
+      map.getContainer().style.cursor = 'crosshair';
+    } else if (currentMode === 'polygon') {
+      toolStatusHint.textContent = 'Modo Polígono ativo: clique no mapa para adicionar os vértices (mínimo 3). Clique em "Concluir" para finalizar.';
+      toolStatusHint.classList.remove('hidden');
+      polygonControls.classList.remove('hidden');
+      map.getContainer().style.cursor = 'crosshair';
+    } else if (currentMode === 'measure') {
+      toolStatusHint.textContent = 'Modo Medição ativo: clique no mapa para traçar os pontos e medir a distância.';
+      toolStatusHint.classList.remove('hidden');
+      polygonControls.classList.add('hidden');
+      map.getContainer().style.cursor = 'crosshair';
+    } else {
+      toolStatusHint.classList.add('hidden');
+      polygonControls.classList.add('hidden');
+      map.getContainer().style.cursor = '';
+    }
+  }
+
+  btnMeasure.addEventListener('click', () => setMode('measure'));
+  btnAddPoint.addEventListener('click', () => setMode('point'));
+  btnAddPolygon.addEventListener('click', () => setMode('polygon'));
+
+  // ------------------------------------------
+  // CÁLCULOS GEODÉSICOS PARA POLÍGONOS
+  // ------------------------------------------
+  function calculatePolygonAreaM2(latLngs) {
+    const R = 6378137; // Raio da Terra em metros
+    if (latLngs.length < 3) return 0;
+    let total = 0;
+    for (let i = 0; i < latLngs.length; i++) {
+      const p1 = latLngs[i];
+      const p2 = latLngs[(i + 1) % latLngs.length];
+      const rad1 = (p1.lat * Math.PI) / 180;
+      const rad2 = (p2.lat * Math.PI) / 180;
+      const dLon = ((p2.lng - p1.lng) * Math.PI) / 180;
+      total += dLon * (2 + Math.sin(rad1) + Math.sin(rad2));
+    }
+    return Math.abs((total * R * R) / 2);
+  }
+
+  function calculatePolygonPerimeterM(latLngs) {
+    if (latLngs.length < 2) return 0;
+    let total = 0;
+    for (let i = 0; i < latLngs.length; i++) {
+      const p1 = latLngs[i];
+      const p2 = latLngs[(i + 1) % latLngs.length];
+      total += map.distance(p1, p2);
+    }
+    return total;
+  }
+
+  // ------------------------------------------
+  // CRIAÇÃO DE PONTOS COM RÓTULO SOBREPOSTO
+  // ------------------------------------------
+  function addPointFeature(latlng) {
+    pointCounter++;
+    const inputName = featureNameInput.value.trim();
+    const name = inputName || `Ponto ${pointCounter}`;
+
+    const icon = L.divIcon({
+      className: 'vg-point-icon',
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
+    });
+
+    const marker = L.marker(latlng, { icon: icon });
+    const featureId = 'point_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    marker._vgId = featureId;
+    marker._vgName = name;
+    marker._vgType = 'point';
+
+    // RÓTULO PERMANENTE SOBRE O PONTO
+    marker.bindTooltip(escapeHtml(name), {
+      permanent: true,
+      direction: 'top',
+      offset: [0, -10],
+      className: 'vg-map-label vg-map-label-point'
+    }).openTooltip();
+
+    function refreshPopup() {
+      const pos = marker.getLatLng();
+      const content = document.createElement('div');
+      content.className = 'feature-popup';
+      content.innerHTML = `
+        <div class="feature-popup-header">
+          <span class="feature-popup-title">${escapeHtml(marker._vgName)}</span>
+          <span class="feature-popup-type">Ponto</span>
+        </div>
+        <div class="feature-popup-row"><b>Lat:</b> ${pos.lat.toFixed(5)}</div>
+        <div class="feature-popup-row"><b>Lon:</b> ${pos.lng.toFixed(5)}</div>
+        <div class="feature-popup-actions">
+          <button class="feature-popup-btn feature-popup-btn-edit" data-action="edit">Renomear</button>
+          <button class="feature-popup-btn feature-popup-btn-delete" data-action="delete">Excluir</button>
+        </div>
+      `;
+
+      content.querySelector('[data-action="edit"]').addEventListener('click', () => {
+        const novo = prompt('Digite o novo nome para este ponto:', marker._vgName);
+        if (novo !== null && novo.trim() !== '') {
+          marker._vgName = novo.trim();
+          marker.setTooltipContent(escapeHtml(marker._vgName));
+          refreshPopup();
+        }
+      });
+
+      content.querySelector('[data-action="delete"]').addEventListener('click', () => {
+        pointsGroup.removeLayer(marker);
+        updateFeaturesCounter();
+      });
+
+      marker.bindPopup(content);
+    }
+
+    refreshPopup();
+    pointsGroup.addLayer(marker);
+    updateFeaturesCounter();
+
+    // Limpa o input após usar
+    if (inputName) {
+      featureNameInput.value = '';
+    }
+  }
+
+  // ------------------------------------------
+  // CRIAÇÃO DE POLÍGONOS COM RÓTULO SOBREPOSTO
+  // ------------------------------------------
+  function addPolygonVertex(latlng) {
+    polyVertices.push(latlng);
+
+    // Marcador visual do vértice
+    const isFirst = polyVertices.length === 1;
+    const vertexMarker = L.circleMarker(latlng, {
+      radius: isFirst ? 6 : 4,
+      color: '#033231',
+      weight: 2,
+      fillColor: isFirst ? '#cbff54' : '#b4f625',
+      fillOpacity: 0.95
+    }).addTo(map);
+
+    if (isFirst) {
+      vertexMarker.bindTooltip('1º vértice (clique para fechar)', {
+        direction: 'top',
+        offset: [0, -6]
+      });
+      vertexMarker.on('click', () => {
+        if (polyVertices.length >= 3) {
+          finishPolygon();
+        }
+      });
+    }
+
+    polyVertexMarkers.push(vertexMarker);
+
+    // Linha de pré-visualização
+    if (polyPreviewLine) {
+      map.removeLayer(polyPreviewLine);
+    }
+    polyPreviewLine = L.polyline(polyVertices, {
+      color: '#063231',
+      weight: 2.5,
+      dashArray: '6 4'
+    }).addTo(map);
+
+    toolStatusHint.textContent = `Vértices adicionados: ${polyVertices.length}. ${polyVertices.length >= 3 ? 'Clique em "Concluir Polígono" ou no 1º vértice para finalizar.' : 'Adicione pelo menos 3 vértices.'}`;
+  }
+
+  function finishPolygon() {
+    if (polyVertices.length < 3) {
+      alert('É necessário adicionar pelo menos 3 vértices no mapa para formar um polígono.');
+      return;
+    }
+
+    polygonCounter++;
+    const inputName = featureNameInput.value.trim();
+    const name = inputName || `Polígono ${polygonCounter}`;
+
+    const polygon = L.polygon(polyVertices, {
+      color: '#063231',
+      weight: 3,
+      fillColor: '#b4f625',
+      fillOpacity: 0.35
+    });
+
+    const featureId = 'poly_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    polygon._vgId = featureId;
+    polygon._vgName = name;
+    polygon._vgType = 'polygon';
+    polygon._vgVertices = [...polyVertices];
+
+    // RÓTULO PERMANENTE NO CENTRO DO POLÍGONO
+    polygon.bindTooltip(escapeHtml(name), {
+      permanent: true,
+      direction: 'center',
+      className: 'vg-map-label vg-map-label-polygon'
+    }).openTooltip();
+
+    function refreshPolyPopup() {
+      const areaM2 = calculatePolygonAreaM2(polygon._vgVertices);
+      const perimM = calculatePolygonPerimeterM(polygon._vgVertices);
+
+      const areaFormatted = areaM2 >= 10000
+        ? `${(areaM2 / 10000).toFixed(2)} ha (${areaM2.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m²)`
+        : `${areaM2.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} m²`;
+
+      const perimFormatted = perimM >= 1000
+        ? `${(perimM / 1000).toFixed(2)} km`
+        : `${perimM.toFixed(1)} m`;
+
+      const content = document.createElement('div');
+      content.className = 'feature-popup';
+      content.innerHTML = `
+        <div class="feature-popup-header">
+          <span class="feature-popup-title">${escapeHtml(polygon._vgName)}</span>
+          <span class="feature-popup-type">Polígono</span>
+        </div>
+        <div class="feature-popup-row"><b>Área:</b> ${areaFormatted}</div>
+        <div class="feature-popup-row"><b>Perímetro:</b> ${perimFormatted}</div>
+        <div class="feature-popup-row"><b>Vértices:</b> ${polygon._vgVertices.length}</div>
+        <div class="feature-popup-actions">
+          <button class="feature-popup-btn feature-popup-btn-edit" data-action="edit">Renomear</button>
+          <button class="feature-popup-btn feature-popup-btn-delete" data-action="delete">Excluir</button>
+        </div>
+      `;
+
+      content.querySelector('[data-action="edit"]').addEventListener('click', () => {
+        const novo = prompt('Digite o novo nome para este polígono:', polygon._vgName);
+        if (novo !== null && novo.trim() !== '') {
+          polygon._vgName = novo.trim();
+          polygon.setTooltipContent(escapeHtml(polygon._vgName));
+          refreshPolyPopup();
+        }
+      });
+
+      content.querySelector('[data-action="delete"]').addEventListener('click', () => {
+        polygonsGroup.removeLayer(polygon);
+        updateFeaturesCounter();
+      });
+
+      polygon.bindPopup(content);
+    }
+
+    refreshPolyPopup();
+    polygonsGroup.addLayer(polygon);
+    updateFeaturesCounter();
+
+    // Limpa estado temporário de desenho
+    cancelPolygonDraw();
+
+    if (inputName) {
+      featureNameInput.value = '';
+    }
+
+    setMode(null);
+  }
+
+  function cancelPolygonDraw() {
+    polyVertices = [];
+    if (polyPreviewLine) {
+      map.removeLayer(polyPreviewLine);
+      polyPreviewLine = null;
+    }
+    polyVertexMarkers.forEach(m => map.removeLayer(m));
+    polyVertexMarkers = [];
+  }
+
+  btnFinishPolygon.addEventListener('click', finishPolygon);
+  btnCancelDraw.addEventListener('click', () => {
+    cancelPolygonDraw();
+    setMode(null);
+  });
+
+  // ------------------------------------------
+  // EVENTO DE CLIQUE NO MAPA (CENTRALIZADO)
+  // ------------------------------------------
+  map.on('click', e => {
+    if (currentMode === 'point') {
+      addPointFeature(e.latlng);
+    } else if (currentMode === 'polygon') {
+      addPolygonVertex(e.latlng);
+    } else if (currentMode === 'measure') {
+      handleMeasureClick(e.latlng);
+    }
+  });
+
+  // Duplo clique fecha o polígono se estiver desenhando
+  map.on('dblclick', e => {
+    if (currentMode === 'polygon' && polyVertices.length >= 3) {
+      finishPolygon();
+    }
+  });
+
+  // ------------------------------------------
+  // LÓGICA DE MEDIÇÃO LINEAR
+  // ------------------------------------------
+  function handleMeasureClick(latlng) {
+    measurePoints.push(latlng);
+
+    measureMarkers.push(
+      L.circleMarker(latlng, {
+        radius: 4,
+        weight: 2,
+        color: '#063231',
+        fillColor: '#cbff54',
+        fillOpacity: 0.9
+      }).addTo(map)
+    );
+
+    if (measureLine) {
+      map.removeLayer(measureLine);
+    }
+
+    measureLine = L.polyline(measurePoints, {
+      weight: 3,
+      color: '#063231',
+      dashArray: '8 6'
+    }).addTo(map);
+
+    if (measurePoints.length > 1) {
+      let total = 0;
+      for (let i = 1; i < measurePoints.length; i++) {
+        total += map.distance(measurePoints[i - 1], measurePoints[i]);
+      }
+      const label = total >= 1000
+        ? `${(total / 1000).toFixed(2)} km`
+        : `${total.toFixed(1)} m`;
+
+      measureLine.bindTooltip(label, { sticky: true }).openTooltip();
+    }
+  }
+
+  // BOTÕES DE LIMPEZA
+  document.getElementById('btnClear').addEventListener('click', () => {
+    if (measureLine) {
+      map.removeLayer(measureLine);
+      measureLine = null;
+    }
+    measureMarkers.forEach(m => map.removeLayer(m));
+    measureMarkers = [];
+    measurePoints = [];
+    if (currentMode === 'measure') {
+      setMode(null);
+    }
+  });
+
+  document.getElementById('btnClearFeatures').addEventListener('click', () => {
+    const total = pointsGroup.getLayers().length + polygonsGroup.getLayers().length;
+    if (total === 0) {
+      alert('Nenhum ponto ou polígono para limpar.');
+      return;
+    }
+    if (confirm(`Deseja remover todas as ${total} feições desenhadas (pontos e polígonos)?`)) {
+      pointsGroup.clearLayers();
+      polygonsGroup.clearLayers();
+      updateFeaturesCounter();
+    }
+  });
+
+  // ------------------------------------------
+  // TEMA ESCURO / CLARO
+  // ------------------------------------------
+  const themeButton = document.getElementById('themeToggle');
+
+  function setTheme(theme) {
+    document.body.dataset.theme = theme;
+    themeButton.textContent = theme === 'dark' ? '☀' : '☾';
+    themeButton.title =
+      theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro';
+
+    localStorage.setItem('webgis-theme', theme);
+  }
+
+  const savedTheme = localStorage.getItem('webgis-theme') || 'light';
+  setTheme(savedTheme);
+
+  themeButton.addEventListener('click', () => {
+    setTheme(
+      document.body.dataset.theme === 'dark' ? 'light' : 'dark'
+    );
+  });
+
+  // Enquadra Goiás na inicialização
+  map.fitBounds(GOIAS_BOUNDS, { padding: [20, 20] });
+
+  // Remove tela de carregamento
+  setTimeout(() => {
+    document.getElementById('loading').classList.add('hidden');
+  }, 200);
+})();
+</script>
+</body>
+</html>
