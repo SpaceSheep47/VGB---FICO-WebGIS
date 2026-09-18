@@ -27,13 +27,20 @@ Foi utilizado o **Esri World Imagery** em vez de um endpoint não oficial do Goo
 ### 4. Dark mode
 O portal possui um botão de tema claro/escuro. A preferência é persistida no navegador com `localStorage`.
 
-### 5. Ferramentas de Desenho e Medição
+### 5. Banco de Dados GeoPackage (.gpkg)
+O WebGIS agora conta com leitura automática de banco de dados geoespacial local (`data/` ou `DATA BASE/`):
+- **Eixo da Ferrovia (FICO)**: Camada linear estilizada com traçado contínuo em carmim ferroviário, cálculo automático de extensão (~363,8 km), realce em hover e popup detalhado de atributos.
+- **ESTACA CHEIA (Estacas Quilométricas)**: 365 pontos georreferenciados ao longo do traçado com tooltips do piquete/estaca (`0+000`, `1+000`, etc.), realce visual e popup com coordenadas geográficas completas e altitude.
+- **Controle de Camadas**: Painel dedicado na barra lateral com ativação/desativação individual, badges por tipo de feição, botão de zoom individual `⌕` e botão de recarregar banco `↻`.
+- **Botão de Enquadramento Global (`🚂`)**: Na barra superior, permite enquadrar imediatamente todo o projeto ferroviário no território goiano.
+
+### 6. Ferramentas de Desenho e Medição
 - **Criação de Pontos**: Permite posicionar pontos no mapa atribuindo um nome personalizado. O nome é exibido de forma permanente diretamente sobre o ponto em um rótulo estilizado, com popup informativo com coordenadas e opções de exclusão e renomeação.
 - **Criação de Polígonos**: Permite desenhar áreas e polígonos clicando nos vértices (mínimo de 3). O nome é exibido de forma permanente diretamente no centro do polígono sobreposto no mapa. Inclui cálculo geodésico de área (em m² ou hectares) e perímetro (em m ou km).
 - **Medição de Distância**: Ferramenta linear para calcular distâncias entre pontos com indicação em metros ou quilômetros.
 - **Identidade Visual Vertical Green**: Cores temáticas oficiais (verde institucional florestal `#063231` e verde lima `#cbff54`), logotipo SVG de alta definição e favicon da empresa.
 
-### 6. Outros recursos
+### 7. Outros recursos
 - busca de endereço/localidade;
 - localização do usuário;
 - controle de camadas;

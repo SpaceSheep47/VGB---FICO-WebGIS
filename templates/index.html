@@ -36,6 +36,7 @@
 
     <div class="top-actions">
       <button id="themeToggle" class="icon-btn" title="Alternar tema">☾</button>
+      <button id="btnFitProject" class="icon-btn" title="Enquadrar Traçado / Ferrovia" style="display: none;">🚂</button>
       <button id="btnHome" class="icon-btn" title="Enquadrar Goiás">⌂</button>
       <button id="btnLocate" class="icon-btn" title="Minha localização">◎</button>
       <button id="btnFullscreen" class="icon-btn" title="Tela cheia">⛶</button>
@@ -53,8 +54,23 @@
       <div id="searchStatus" class="muted"></div>
     </section>
 
+    <!-- BANCO DE DADOS (GEOPACKAGE) -->
     <section class="panel">
-      <div class="panel-title">MAPAS BASE</div>
+      <div class="panel-header-row">
+        <div class="panel-title">BANCO DE DADOS (GEOPACKAGE)</div>
+        <button id="btnReloadDb" class="action-mini-btn" title="Recarregar camadas da pasta DATA BASE">↻</button>
+      </div>
+      <div class="db-status-bar" id="dbStatusBar">
+        <span class="db-indicator" id="dbIndicator">●</span>
+        <span id="dbStatusText">Buscando camadas no banco...</span>
+      </div>
+      <div id="dbLayersList" class="layers-list">
+        <!-- Camadas .gpkg adicionadas dinamicamente via JS -->
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">MAPAS BASE & REFERÊNCIA</div>
 
       <label class="layer-item">
         <input type="radio" name="basemap" value="osm" checked>
@@ -67,12 +83,8 @@
         <span class="swatch satellite-swatch"></span>
         <span>Imagem de Satélite</span>
       </label>
-    </section>
 
-    <section class="panel">
-      <div class="panel-title">CAMADAS</div>
-
-      <label class="layer-item">
+      <label class="layer-item" style="margin-top: 4px;">
         <input type="checkbox" id="roadsToggle" checked>
         <span class="swatch roads-swatch"></span>
         <span>Rodovias e transportes</span>
@@ -125,17 +137,20 @@
 
     <section class="panel legend-panel">
       <div class="panel-title">LEGENDA</div>
+      <div id="dbLegendItems">
+        <!-- Itens de legenda das camadas do banco inseridos dinamicamente -->
+      </div>
       <div class="legend-row">
         <span class="legend-line road-line"></span>
         Rodovias / rede viária
       </div>
       <div class="legend-row">
         <span class="legend-point point-dot-legend"></span>
-        Pontos identificados
+        Pontos desenhados
       </div>
       <div class="legend-row">
         <span class="legend-poly poly-swatch-legend"></span>
-        Polígonos com rótulo
+        Polígonos desenhados
       </div>
     </section>
 
@@ -800,6 +815,324 @@
       updateFeaturesCounter();
     }
   });
+
+  // ==========================================
+  // INTEGRAÇÃO COM BANCO DE DADOS (GEOPACKAGE)
+  // ==========================================
+  const dbLayersState = {}; // id -> { meta, layerGroup, bounds, visible }
+  let combinedProjectBounds = null;
+  const dbLayersListEl = document.getElementById('dbLayersList');
+  const dbStatusTextEl = document.getElementById('dbStatusText');
+  const dbIndicatorEl = document.getElementById('dbIndicator');
+  const dbLegendItemsEl = document.getElementById('dbLegendItems');
+  const btnFitProject = document.getElementById('btnFitProject');
+  const btnReloadDb = document.getElementById('btnReloadDb');
+
+  function calculateGeometryLengthKm(layer) {
+    try {
+      const latlngs = layer.getLatLngs();
+      if (!Array.isArray(latlngs) || latlngs.length === 0) return null;
+      if (Array.isArray(latlngs[0])) {
+        let sum = 0;
+        latlngs.forEach(seg => {
+          for (let i = 1; i < seg.length; i++) {
+            sum += map.distance(seg[i - 1], seg[i]);
+          }
+        });
+        return sum / 1000;
+      }
+      let sum = 0;
+      for (let i = 1; i < latlngs.length; i++) {
+        sum += map.distance(latlngs[i - 1], latlngs[i]);
+      }
+      return sum / 1000;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function formatAttributesTable(props) {
+    if (!props || typeof props !== 'object') return '';
+    const rows = [];
+    for (const [key, val] of Object.entries(props)) {
+      if (val === null || val === undefined || val === '' || val === 'None') continue;
+      if (['id', 'visibility', 'extrude', 'tessellate', 'drawOrder', 'icon'].includes(key) && (val === 0 || val === '0' || val === '')) continue;
+      rows.push(`<tr><td class="key">${escapeHtml(key)}:</td><td class="val">${escapeHtml(val)}</td></tr>`);
+    }
+    if (rows.length === 0) return '';
+    return `<table class="db-popup-table">${rows.join('')}</table>`;
+  }
+
+  function createFeaturePopupHtml(layerMeta, feature, extraHtml = '') {
+    const props = feature.properties || {};
+    const featName = props.Name || props.name || layerMeta.display_name;
+    const geomType = layerMeta.geometry_type;
+    const badgeClass = geomType.toLowerCase().includes('line')
+      ? 'db-layer-badge-linestring'
+      : (geomType.toLowerCase().includes('point') ? 'db-layer-badge-point' : 'db-layer-badge-polygon');
+
+    return `
+      <div class="db-feature-popup">
+        <div class="db-popup-header">
+          <span class="db-popup-title">${escapeHtml(featName)}</span>
+          <span class="db-layer-badge ${badgeClass}">${escapeHtml(geomType)}</span>
+        </div>
+        ${extraHtml}
+        ${formatAttributesTable(props)}
+        <div class="small muted" style="margin-top: 5px; font-size: 10px;">Arquivo: <b>${escapeHtml(layerMeta.filename)}</b></div>
+      </div>
+    `;
+  }
+
+  async function loadDatabaseLayers() {
+    dbStatusTextEl.textContent = 'Consultando banco de dados...';
+    dbIndicatorEl.className = 'db-indicator loading';
+    dbLayersListEl.innerHTML = '';
+    dbLegendItemsEl.innerHTML = '';
+
+    // Remove camadas anteriores se houver
+    Object.keys(dbLayersState).forEach(id => {
+      if (dbLayersState[id].layerGroup) {
+        map.removeLayer(dbLayersState[id].layerGroup);
+      }
+    });
+    for (const k in dbLayersState) delete dbLayersState[k];
+    combinedProjectBounds = null;
+
+    try {
+      const response = await fetch('/api/database/layers');
+      if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+      const data = await response.json();
+
+      if (!data.layers || data.layers.length === 0) {
+        dbStatusTextEl.textContent = 'Nenhum .gpkg encontrado em DATA BASE.';
+        dbIndicatorEl.className = 'db-indicator offline';
+        dbLayersListEl.innerHTML = '<div class="muted small" style="padding: 6px;">Nenhum arquivo GeoPackage encontrado no diretório DATA BASE.</div>';
+        btnFitProject.style.display = 'none';
+        return;
+      }
+
+      let totalFeaturesCount = 0;
+      let loadedLayersCount = 0;
+
+      for (const layerMeta of data.layers) {
+        totalFeaturesCount += layerMeta.features_count || 0;
+
+        // Acumula bounding box global
+        if (layerMeta.bounds && layerMeta.bounds.length === 2) {
+          const lBounds = L.latLngBounds(layerMeta.bounds[0], layerMeta.bounds[1]);
+          if (!combinedProjectBounds) {
+            combinedProjectBounds = L.latLngBounds(lBounds.getSouthWest(), lBounds.getNorthEast());
+          } else {
+            combinedProjectBounds.extend(lBounds);
+          }
+        }
+
+        // Determina tipo e ícones
+        const isLine = layerMeta.geometry_type.toLowerCase().includes('line');
+        const isPoint = layerMeta.geometry_type.toLowerCase().includes('point');
+        const isPolygon = layerMeta.geometry_type.toLowerCase().includes('polygon');
+
+        let swatchClass = 'swatch-polygon-db';
+        let badgeClass = 'db-layer-badge-polygon';
+        let geomLabel = 'Polígono';
+
+        if (isLine) {
+          swatchClass = 'swatch-railway';
+          badgeClass = 'db-layer-badge-linestring';
+          geomLabel = 'Linha';
+        } else if (isPoint) {
+          swatchClass = 'swatch-stake';
+          badgeClass = 'db-layer-badge-point';
+          geomLabel = 'Pontos';
+        }
+
+        // Cria elemento de controle na sidebar
+        const layerCard = document.createElement('div');
+        layerCard.className = 'db-layer-card';
+        layerCard.innerHTML = `
+          <div class="db-layer-row">
+            <label class="db-layer-main" title="${escapeHtml(layerMeta.display_name)} (${escapeHtml(layerMeta.filename)})">
+              <input type="checkbox" id="chk_${layerMeta.id}" checked>
+              <span class="${swatchClass}"></span>
+              <span class="db-layer-title">${escapeHtml(layerMeta.display_name)}</span>
+            </label>
+            <button class="db-layer-zoom-btn" id="zoom_${layerMeta.id}" title="Enquadrar esta camada no mapa">⌕</button>
+          </div>
+          <div class="db-layer-meta">
+            <span class="db-layer-badge ${badgeClass}">${geomLabel}</span>
+            <span>${layerMeta.features_count} feiç${layerMeta.features_count === 1 ? 'ão' : 'ões'}</span>
+          </div>
+        `;
+        dbLayersListEl.appendChild(layerCard);
+
+        // Adiciona item na legenda
+        const legendRow = document.createElement('div');
+        legendRow.className = 'legend-row';
+        if (isLine) {
+          legendRow.innerHTML = `<span class="legend-line railway-line"></span> ${escapeHtml(layerMeta.display_name)}`;
+        } else if (isPoint) {
+          legendRow.innerHTML = `<span class="legend-point stake-point"></span> ${escapeHtml(layerMeta.display_name)}`;
+        } else {
+          legendRow.innerHTML = `<span class="legend-poly poly-swatch-legend"></span> ${escapeHtml(layerMeta.display_name)}`;
+        }
+        dbLegendItemsEl.appendChild(legendRow);
+
+        // Busca GeoJSON da camada
+        try {
+          const geoResponse = await fetch(`/api/database/layers/${layerMeta.id}/geojson`);
+          if (!geoResponse.ok) throw new Error(`HTTP ${geoResponse.status}`);
+          const geojsonData = await geoResponse.json();
+
+          const geoLayer = L.geoJSON(geojsonData, {
+            pointToLayer: (feature, latlng) => {
+              const marker = L.circleMarker(latlng, {
+                radius: 5,
+                weight: 1.5,
+                color: '#063231',
+                fillColor: '#cbff54',
+                fillOpacity: 0.95
+              });
+
+              // Tooltip com o nome da estaca ao passar o mouse
+              const label = feature.properties && feature.properties.Name ? feature.properties.Name : 'Estaca';
+              marker.bindTooltip(escapeHtml(label), {
+                direction: 'top',
+                offset: [0, -6],
+                className: 'vg-map-label vg-map-label-point'
+              });
+
+              // Efeito visual de hover
+              marker.on('mouseover', () => {
+                marker.setStyle({ radius: 7, fillColor: '#ffffff', color: '#033231' });
+              });
+              marker.on('mouseout', () => {
+                marker.setStyle({ radius: 5, fillColor: '#cbff54', color: '#063231' });
+              });
+
+              return marker;
+            },
+            style: (feature) => {
+              if (isLine) {
+                return {
+                  color: '#d90429',
+                  weight: 4,
+                  opacity: 0.95,
+                  lineJoin: 'round',
+                  lineCap: 'round'
+                };
+              }
+              if (isPolygon) {
+                return {
+                  color: '#2563eb',
+                  weight: 2,
+                  fillColor: '#3a86ff',
+                  fillOpacity: 0.35
+                };
+              }
+              return {};
+            },
+            onEachFeature: (feature, leafletFeat) => {
+              let extraHtml = '';
+              const props = feature.properties || {};
+
+              if (isLine) {
+                // Cálculo de extensão da linha
+                const lengthKm = calculateGeometryLengthKm(leafletFeat);
+                if (lengthKm !== null) {
+                  extraHtml = `<div class="feature-popup-row" style="margin-bottom: 6px;"><b>Extensão:</b> ${lengthKm.toFixed(2)} km (${(lengthKm * 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} m)</div>`;
+                }
+
+                // Tooltip na linha
+                leafletFeat.bindTooltip(escapeHtml(layerMeta.display_name), { sticky: true });
+
+                // Destaque ao passar o mouse
+                leafletFeat.on('mouseover', () => {
+                  leafletFeat.setStyle({ weight: 6, color: '#ff4d6d' });
+                });
+                leafletFeat.on('mouseout', () => {
+                  leafletFeat.setStyle({ weight: 4, color: '#d90429' });
+                });
+              } else if (isPoint) {
+                const lat = feature.geometry.coordinates[1];
+                const lon = feature.geometry.coordinates[0];
+                const alt = feature.geometry.coordinates.length > 2 ? feature.geometry.coordinates[2] : null;
+                extraHtml = `
+                  <div class="feature-popup-row"><b>Lat:</b> ${lat.toFixed(6)} | <b>Lon:</b> ${lon.toFixed(6)}</div>
+                  ${alt !== null && alt !== 0 ? `<div class="feature-popup-row"><b>Altitude:</b> ${alt.toFixed(2)} m</div>` : ''}
+                `;
+              }
+
+              leafletFeat.bindPopup(() => createFeaturePopupHtml(layerMeta, feature, extraHtml));
+            }
+          });
+
+          // Adiciona ao mapa
+          geoLayer.addTo(map);
+
+          // Armazena no estado
+          dbLayersState[layerMeta.id] = {
+            meta: layerMeta,
+            layerGroup: geoLayer,
+            bounds: layerMeta.bounds,
+            visible: true
+          };
+
+          // Liga/desliga camada
+          const chk = document.getElementById(`chk_${layerMeta.id}`);
+          chk.addEventListener('change', e => {
+            if (e.target.checked) {
+              map.addLayer(geoLayer);
+              dbLayersState[layerMeta.id].visible = true;
+            } else {
+              map.removeLayer(geoLayer);
+              dbLayersState[layerMeta.id].visible = false;
+            }
+          });
+
+          // Botão de zoom individual
+          const zoomBtn = document.getElementById(`zoom_${layerMeta.id}`);
+          zoomBtn.addEventListener('click', () => {
+            if (layerMeta.bounds) {
+              map.fitBounds(layerMeta.bounds, { padding: [40, 40] });
+            } else if (geoLayer.getBounds && geoLayer.getBounds().isValid()) {
+              map.fitBounds(geoLayer.getBounds(), { padding: [40, 40] });
+            }
+          });
+
+          loadedLayersCount++;
+        } catch (layerErr) {
+          console.error(`Erro ao carregar GeoJSON da camada ${layerMeta.id}:`, layerErr);
+        }
+      }
+
+      // Atualiza status final
+      dbStatusTextEl.textContent = `${loadedLayersCount} camada${loadedLayersCount !== 1 ? 's' : ''} (${totalFeaturesCount} feições)`;
+      dbIndicatorEl.className = 'db-indicator';
+
+      // Configura botão de enquadramento global da ferrovia / banco
+      if (combinedProjectBounds && combinedProjectBounds.isValid()) {
+        btnFitProject.style.display = 'flex';
+        btnFitProject.onclick = () => {
+          map.fitBounds(combinedProjectBounds, { padding: [35, 35] });
+        };
+
+        // Enquadramento automático na primeira carga
+        map.fitBounds(combinedProjectBounds, { padding: [35, 35] });
+      }
+
+    } catch (err) {
+      console.error('Erro ao listar camadas do banco:', err);
+      dbStatusTextEl.textContent = 'Erro ao carregar banco de dados.';
+      dbIndicatorEl.className = 'db-indicator offline';
+    }
+  }
+
+  // Evento do botão de recarregar banco
+  btnReloadDb.addEventListener('click', loadDatabaseLayers);
+
+  // Inicializa carregamento das camadas do banco de dados
+  loadDatabaseLayers();
 
   // ------------------------------------------
   // TEMA ESCURO / CLARO

@@ -728,6 +728,288 @@ body[data-theme="dark"] .leaflet-tooltip-top:before {
   background: #cbff54;
 }
 
+/* ========================================== */
+/* BANCO DE DADOS (GEOPACKAGE)                */
+/* ========================================== */
+.panel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.panel-header-row .panel-title {
+  margin-bottom: 0;
+}
+
+.action-mini-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s ease;
+}
+
+.action-mini-btn:hover {
+  background: var(--accent);
+  color: #033231;
+  border-color: var(--accent);
+}
+
+.db-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  padding: 4px 7px;
+  background: rgba(6, 50, 49, .04);
+  border-radius: 5px;
+}
+
+body[data-theme="dark"] .db-status-bar {
+  background: rgba(180, 246, 37, .06);
+}
+
+.db-indicator {
+  font-size: 11px;
+  color: #10b981;
+}
+
+.db-indicator.offline {
+  color: #ef4444;
+}
+
+.db-indicator.loading {
+  color: #f59e0b;
+}
+
+.db-layer-card {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: rgba(6, 50, 49, .02);
+  margin-bottom: 6px;
+  transition: all .12s ease;
+}
+
+.db-layer-card:hover {
+  background: rgba(6, 50, 49, .06);
+  border-color: var(--border);
+}
+
+body[data-theme="dark"] .db-layer-card {
+  background: rgba(180, 246, 37, .03);
+}
+
+body[data-theme="dark"] .db-layer-card:hover {
+  background: rgba(180, 246, 37, .08);
+  border-color: var(--border);
+}
+
+.db-layer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.db-layer-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.db-layer-main input {
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+body[data-theme="dark"] .db-layer-main input {
+  accent-color: var(--accent);
+}
+
+.db-layer-title {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-layer-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 26px;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.db-layer-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.db-layer-badge-linestring {
+  background: rgba(217, 4, 41, .15);
+  color: #d90429;
+}
+
+body[data-theme="dark"] .db-layer-badge-linestring {
+  background: rgba(255, 77, 109, .25);
+  color: #ff758f;
+}
+
+.db-layer-badge-point {
+  background: rgba(6, 50, 49, .15);
+  color: #063231;
+}
+
+body[data-theme="dark"] .db-layer-badge-point {
+  background: rgba(180, 246, 37, .2);
+  color: #cbff54;
+}
+
+.db-layer-badge-polygon {
+  background: rgba(58, 134, 255, .15);
+  color: #2563eb;
+}
+
+.db-layer-zoom-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: all .12s ease;
+  flex-shrink: 0;
+}
+
+.db-layer-zoom-btn:hover {
+  background: var(--accent);
+  color: #033231;
+  border-color: var(--accent);
+}
+
+/* SWATCHES ESPECIALIZADOS DO BANCO */
+.swatch-railway {
+  height: 5px;
+  margin: 6px 0;
+  border: 0;
+  background: #d90429;
+  box-shadow: 0 0 0 1px #800016;
+}
+
+.swatch-stake {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid #063231;
+  background: #cbff54;
+}
+
+body[data-theme="dark"] .swatch-stake {
+  border-color: #cbff54;
+  background: #033231;
+}
+
+.swatch-polygon-db {
+  background: rgba(58, 134, 255, .4);
+  border: 1.5px solid #2563eb;
+}
+
+/* LEGENDA ADICIONAL */
+.legend-line.railway-line {
+  background: #d90429;
+  height: 4px;
+  box-shadow: 0 0 0 1px #800016;
+}
+
+.legend-point.stake-point {
+  border: 1.5px solid #063231;
+  background: #cbff54;
+  border-radius: 50%;
+}
+
+body[data-theme="dark"] .legend-point.stake-point {
+  border-color: #cbff54;
+  background: #033231;
+}
+
+/* POPUP DO BANCO DE DADOS */
+.db-feature-popup {
+  font-size: 12px;
+  line-height: 1.4;
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.db-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #d4ded9;
+}
+
+.db-popup-title {
+  font-weight: 700;
+  color: #033231;
+  font-size: 13px;
+}
+
+.db-popup-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6px;
+}
+
+.db-popup-table tr {
+  border-bottom: 1px solid #f0f4f2;
+}
+
+.db-popup-table td {
+  padding: 3px 0;
+  vertical-align: top;
+}
+
+.db-popup-table td.key {
+  color: #495b55;
+  font-weight: 600;
+  width: 42%;
+  font-size: 11px;
+}
+
+.db-popup-table td.val {
+  color: #192726;
+  font-size: 11px;
+  word-break: break-word;
+}
+
 @media (max-width: 700px) {
   .sidebar {
     top: 74px;
