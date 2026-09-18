@@ -1010,20 +1010,200 @@ body[data-theme="dark"] .legend-point.stake-point {
   word-break: break-word;
 }
 
-@media (max-width: 700px) {
-  .sidebar {
-    top: 74px;
-    width: calc(100vw - 28px);
-    max-height: 48vh;
-    bottom: auto;
+/* ============================================
+   MENU HAMBÚRGUER — HEADER DO DRAWER MOBILE
+   Visível apenas em mobile; oculto em desktop
+   ============================================ */
+
+/* Botão de toggle: visível em qualquer tamanho (já existe no HTML),
+   mas só tem função visual relevante no mobile. Ocultamos no desktop. */
+.menu-toggle-btn {
+  display: none;
+}
+
+/* Cabeçalho interno da sidebar mobile: oculto no desktop */
+.sidebar-mobile-header {
+  display: none;
+}
+
+/* Backdrop: toque fora fecha o drawer */
+.drawer-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 890;
+  background: rgba(3, 20, 19, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+.drawer-backdrop.visible {
+  opacity: 1;
+}
+
+/* ============================================
+   BREAKPOINT MOBILE  ≤ 768 px
+   ============================================ */
+@media (max-width: 768px) {
+
+  /* --- Topbar compact --- */
+  .topbar {
+    height: 56px;
+    padding: 0 12px;
   }
 
   .brand-subtitle {
     display: none;
   }
 
+  .brand-title {
+    font-size: 15px;
+  }
+
+  .brand-mark {
+    height: 36px;
+    padding: 2px 6px;
+  }
+
+  .brand-logo {
+    height: 30px;
+  }
+
+  /* Mostra o botão hambúrguer */
+  .menu-toggle-btn {
+    display: flex;
+  }
+
+  /* --- Sidebar vira drawer lateral --- */
+  .sidebar {
+    /* Posição fixa, ocupa toda a altura abaixo da topbar */
+    position: fixed;
+    z-index: 1000;          /* acima do backdrop (890) */
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(320px, 88vw);
+
+    /* Oculto por padrão: traduzido para a esquerda */
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4, 0, .2, 1),
+                box-shadow .28s ease;
+
+    border-radius: 0 12px 12px 0;
+    border-left: none;
+
+    /* Garante scroll interno */
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 24px;
+
+    /* Não some por causa do left/top do desktop */
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+  }
+
+  /* Estado aberto */
+  .sidebar.drawer-open {
+    transform: translateX(0);
+    box-shadow: 6px 0 30px rgba(3, 20, 19, .45);
+  }
+
+  /* Backdrop: bloco flex quando ativo */
+  .drawer-backdrop {
+    display: block;
+    pointer-events: none;  /* desativado enquanto fechado */
+  }
+
+  .drawer-backdrop.visible {
+    pointer-events: auto;
+  }
+
+  /* --- Cabeçalho interno do drawer --- */
+  .sidebar-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--topbar);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .sidebar-mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sidebar-mobile-title {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .close-sidebar-btn {
+    width: 34px;
+    height: 34px;
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 7px;
+    background: rgba(255,255,255,.1);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s ease, border-color .15s ease;
+  }
+
+  .close-sidebar-btn:hover {
+    background: rgba(203, 255, 84, .25);
+    border-color: var(--accent);
+  }
+
+  /* --- Status do mapa: move para canto inferior esquerdo no mobile --- */
   .map-status {
     left: 12px;
     right: auto;
+    bottom: 50px;   /* acima dos controles de zoom do Leaflet */
+    font-size: 10px;
+    padding: 5px 8px;
+    gap: 8px;
+  }
+
+  /* --- Botões da topbar: reduz um pouco --- */
+  .icon-btn {
+    width: 33px;
+    height: 33px;
+    font-size: 16px;
+  }
+
+  /* --- InfoBox responsivo --- */
+  .info-box {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    top: 66px;
   }
 }
+
+/* ============================================
+   Ícone hambúrguer animado (opcional: ×  ao abrir)
+   ============================================ */
+.hamburger-icon {
+  display: inline-block;
+  font-style: normal;
+  transition: transform .2s ease;
+  line-height: 1;
+}
+
+.menu-toggle-btn.is-open .hamburger-icon {
+  transform: rotate(90deg);
+}
+

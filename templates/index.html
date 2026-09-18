@@ -22,10 +22,13 @@
 
   <header class="topbar">
     <div class="brand">
+      <button id="menuToggle" class="icon-btn menu-toggle-btn" title="Alternar menu lateral" aria-label="Abrir menu">
+        <span class="hamburger-icon">☰</span>
+      </button>
       <div class="brand-mark">
         <img src="{{ url_for('static', filename='logo.svg') }}" alt="Vertical Green" class="brand-logo">
       </div>
-      <div>
+      <div class="brand-text">
         <div class="brand-title">
           Vertical Green
           <span class="brand-badge">WebGIS</span>
@@ -43,7 +46,13 @@
     </div>
   </header>
 
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-mobile-header">
+      <div class="sidebar-mobile-brand">
+        <span class="sidebar-mobile-title">Menu & Camadas</span>
+      </div>
+      <button id="closeSidebarBtn" class="close-sidebar-btn" title="Fechar menu" aria-label="Fechar menu">✕</button>
+    </div>
     <section class="panel search-panel">
       <div class="panel-title">LOCALIZAÇÃO</div>
       <div class="search-row">
@@ -166,6 +175,7 @@
       <div class="small">Soluções Geotécnicas e Ambientais</div>
     </div>
   </aside>
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
 
   <main id="map"></main>
 
@@ -1164,6 +1174,87 @@
   setTimeout(() => {
     document.getElementById('loading').classList.add('hidden');
   }, 200);
+
+  // ==========================================
+  // MENU HAMBÚRGUER — DRAWER MOBILE
+  // ==========================================
+  const sidebar        = document.getElementById('sidebar');
+  const menuToggleBtn  = document.getElementById('menuToggle');
+  const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+  const drawerBackdrop = document.getElementById('drawerBackdrop');
+
+  /** Retorna true se a viewport for mobile (≤ 768 px) */
+  function isMobile() {
+    return window.matchMedia('(max-width: 768px)').matches;
+  }
+
+  function openDrawer() {
+    sidebar.classList.add('drawer-open');
+    drawerBackdrop.style.display = 'block';
+    // Força reflow para a transição de opacidade funcionar
+    drawerBackdrop.getBoundingClientRect();
+    drawerBackdrop.classList.add('visible');
+    menuToggleBtn.classList.add('is-open');
+    menuToggleBtn.setAttribute('aria-label', 'Fechar menu');
+    document.body.style.overflow = 'hidden'; // evita scroll do fundo
+  }
+
+  function closeDrawer() {
+    sidebar.classList.remove('drawer-open');
+    drawerBackdrop.classList.remove('visible');
+    menuToggleBtn.classList.remove('is-open');
+    menuToggleBtn.setAttribute('aria-label', 'Abrir menu');
+    document.body.style.overflow = '';
+    // Esconde o backdrop após a transição terminar
+    drawerBackdrop.addEventListener('transitionend', function handler() {
+      if (!drawerBackdrop.classList.contains('visible')) {
+        drawerBackdrop.style.display = 'none';
+      }
+      drawerBackdrop.removeEventListener('transitionend', handler);
+    });
+  }
+
+  function toggleDrawer() {
+    if (!isMobile()) return; // no desktop, o botão não faz nada relevante
+    if (sidebar.classList.contains('drawer-open')) {
+      closeDrawer();
+    } else {
+      openDrawer();
+    }
+  }
+
+  menuToggleBtn.addEventListener('click', toggleDrawer);
+  closeSidebarBtn.addEventListener('click', closeDrawer);
+  drawerBackdrop.addEventListener('click', closeDrawer);
+
+  // Fecha o drawer ao redimensionar para desktop
+  window.addEventListener('resize', () => {
+    if (!isMobile() && sidebar.classList.contains('drawer-open')) {
+      sidebar.classList.remove('drawer-open');
+      drawerBackdrop.classList.remove('visible');
+      drawerBackdrop.style.display = 'none';
+      menuToggleBtn.classList.remove('is-open');
+      document.body.style.overflow = '';
+    }
+  });
+
+  // Fecha o drawer ao clicar em qualquer botão de ação dentro da sidebar
+  // (busca, mapas base, ferramentas) — melhora UX em telas pequenas
+  sidebar.querySelectorAll(
+    'input[type="radio"], #searchBtn, #btnMeasure, #btnAddPoint, #btnAddPolygon'
+  ).forEach(el => {
+    el.addEventListener('click', () => {
+      if (isMobile()) closeDrawer();
+    });
+  });
+
+  // Fecha drawer ao clicar no mapa (útil ao ativar uma ferramenta)
+  map.on('click', () => {
+    if (isMobile() && sidebar.classList.contains('drawer-open')) {
+      closeDrawer();
+    }
+  });
+
 })();
 </script>
 </body>
