@@ -1,0 +1,252 @@
+
+/* -------------------------------------------------------------------------
+   Visualizador 360° — VGB FICO WebGIS
+   ------------------------------------------------------------------------- */
+
+.panorama-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+}
+
+.panorama-modal.hidden {
+  display: none !important;
+}
+
+.panorama-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 17, 16, .78);
+  backdrop-filter: blur(5px);
+}
+
+.panorama-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(1500px, 96vw);
+  height: min(900px, 92vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(203, 255, 84, .28);
+  border-radius: 12px;
+  background: #071f1e;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, .55);
+}
+
+.panorama-modal-header {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px 8px 14px;
+  color: #fff;
+  background: linear-gradient(90deg, #033231, #063f3c);
+  border-bottom: 1px solid rgba(203, 255, 84, .18);
+}
+
+.panorama-modal-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.panorama-modal-icon {
+  width: 30px;
+  height: 30px;
+  display: block;
+  flex: 0 0 auto;
+}
+
+.panorama-modal-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.panorama-modal-title {
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.panorama-modal-meta {
+  margin-top: 2px;
+  color: #cbe0db;
+  font-size: 10px;
+}
+
+.panorama-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.panorama-action-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,.20);
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(255,255,255,.08);
+  cursor: pointer;
+  font-size: 18px;
+  transition: .15s ease;
+}
+
+.panorama-action-btn:hover:not(:disabled) {
+  border-color: #cbff54;
+  background: rgba(203,255,84,.18);
+}
+
+.panorama-action-btn:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+.panorama-action-btn.close:hover {
+  border-color: #ff6b6b;
+  background: rgba(216,57,57,.22);
+}
+
+.panorama-viewer {
+  min-height: 0;
+  flex: 1;
+  background: #000;
+}
+
+.panorama-viewer .psv-container {
+  width: 100%;
+  height: 100%;
+}
+
+.panorama-modal-footer {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 12px;
+  color: #9eb7b1;
+  background: #051817;
+  font-size: 10px;
+  border-top: 1px solid rgba(203, 255, 84, .12);
+}
+
+.panorama-error {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.panorama-error small {
+  color: #aabbb7;
+}
+
+.panorama-marker-wrapper {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.panorama-marker {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,.45));
+  transition: transform .12s ease, filter .12s ease;
+}
+
+.panorama-marker:hover {
+  transform: scale(1.15);
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,.6));
+}
+
+.panorama-marker svg {
+  width: 100%;
+  height: 100%;
+}
+
+.panorama-tooltip {
+  border: 1px solid #063231 !important;
+  border-radius: 5px !important;
+  color: #033231 !important;
+  background: #fff !important;
+  font-size: 10px !important;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+
+.panorama-sidebar-panel .panorama-status-bar {
+  margin-bottom: 4px;
+}
+
+.panorama-layer-toggle {
+  margin: 2px -2px 5px;
+}
+
+.panorama-legend-dot {
+  width: 13px;
+  height: 13px;
+  display: inline-block;
+  border-radius: 50%;
+  background: #063231;
+  border: 2px solid #cbff54;
+  box-shadow: 0 0 0 1px rgba(6,50,49,.25);
+}
+
+.panorama-fit-btn {
+  margin-top: 3px;
+  justify-content: center;
+}
+
+body.panorama-open {
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .panorama-modal {
+    padding: 0;
+  }
+
+  .panorama-modal-panel {
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .panorama-modal-header {
+    min-height: 54px;
+  }
+
+  .panorama-modal-title {
+    max-width: 45vw;
+  }
+
+  .panorama-modal-footer span:last-child {
+    display: none;
+  }
+
+  .panorama-action-btn {
+    width: 31px;
+    height: 31px;
+  }
+}
